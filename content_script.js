@@ -1,41 +1,64 @@
-// content_script.js
+// content_script.js - ULTRA AGGRESSIVE MODE
 
-function blockFacebookDistractions() {
-    // 1. যে URL পথ বা Link Address গুলো আমরা ব্লক করতে চাই (Reels, Watch, Marketplace)
-    const distractionPaths = [
-        '/reels/',
-        '/watch/',
-        '/marketplace/'
-    ];
-
-    // 2. পেজের সব Link (<a> tags) সিলেক্ট করা
-    const allLinks = document.querySelectorAll('a');
-
-    allLinks.forEach(link => {
-        const linkHref = link.href || ''; 
-        
-        // 3. লিংকটি ব্লক করার পথের মধ্যে পড়ে কিনা তা যাচাই করা
-        const isDistractionLink = distractionPaths.some(path => linkHref.includes(path));
-
-        if (isDistractionLink) {
-            // 4. পুরো আইকন বা ট্যাব-টিকে লুকিয়ে ফেলার জন্য তার মূল কন্টেইনারটিকে খুঁজে বের করা
-            // এটি সাধারণত নেভিগেশন বারে 'div[role="tab"]' বা 'li' ট্যাগের মধ্যে থাকে।
-            let parentToHide = link.closest('div[role="tab"], li, div[role="menuitem"]');
-            
+// এই ফাংশনটি Facebook-এর DOM (HTML Structure) পরিবর্তন হওয়া দেখবে এবং ব্লক করবে।
+function aggressiveBlocker(mutationsList, observer) {
+    
+    // 1. নেভিগেশন আইকন এবং লিঙ্ক ব্লক (Reels, Watch, Stories, Marketplace)
+    const distractionPaths = ['/reels/', '/watch/', '/marketplace/', '/stories/'];
+    
+    distractionPaths.forEach(path => {
+        const links = document.querySelectorAll(`a[href*="${path}"]`);
+        links.forEach(link => {
+            // আইকনের কন্টেইনার (div, li) খুঁজে লুকিয়ে দেওয়া
+            let parentToHide = link.closest('[role="tab"], li, div[role="menuitem"], div[role="feed"] > div');
             if (parentToHide) {
-                // কন্টেইনারটি পেলে সেটিকে লুকিয়ে দেওয়া
                 parentToHide.style.display = 'none';
-            } else {
-                // যদি কন্টেইনার খুঁজে না পায়, তবে শুধু লিঙ্কটি লুকিয়ে দেওয়া
-                link.style.display = 'none';
             }
+        });
+    });
+
+    // 2. ফিডের মধ্যে ভিডিও এবং স্টোরি কন্টেইনার ব্লক করা (www এবং m উভয়ের জন্য)
+    const feedDistractionSelectors = [
+        // Reels & Watch Section Containers
+        '[role="feed"] div:has(div[data-testid*="StoriesTab"]), [role="feed"] div:has(a[href*="/reels/"])',
+        
+        // Targetting the main HTML video tag aggressively
+        'video', 
+        
+        // Stories and Video tabs/sections (based on data attributes)
+        'div[data-pagelet*="Stories"], div[data-pagelet*="Video"], a[href*="/stories/"]',
+        
+        // General containers for sponsored/suggested video content
+        '[data-testid*="fbFeedStory"] article div:has(video)',
+        '[aria-label*="Suggested Videos"]',
+        '[aria-label*="Reels and short videos"]'
+    ];
+    
+    feedDistractionSelectors.forEach(selector => {
+        try {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+                // ভিডিও বা স্টোরির প্যারেন্ট এলিমেন্ট খুঁজে সেটিকে সম্পূর্ণ লুকিয়ে দেওয়া 
+                let containerToHide = el.closest('[role="feed"] > div, [role="article"], [data-testid*="fbFeedStory"]');
+                if (containerToHide && containerToHide.parentElement.children.length > 1) {
+                    containerToHide.style.display = 'none';
+                } else if (el.tagName === 'VIDEO') {
+                    // শুধু ভিডিও ট্যাগ পেলে সেটিকে লুকিয়ে দেওয়া
+                    el.style.display = 'none';
+                }
+            });
+        } catch (e) {
+            // Ignore complex selectors if they fail
         }
     });
 }
 
-// কোডটি পেজ লোড হওয়ার সাথে সাথেই চালানো
-blockFacebookDistractions();
+// MutationObserver সেট আপ করা (Dynamic loading handling)
+const targetNode = document.body;
+const config = { childList: true, subtree: true };
 
-// প্রতি 200 মিলিসেকেন্ড পর পর কোডটি পুনরায় চালানো (Dynamic Loading)
-// ফেসবুক যেহেতু স্ক্রল করার সাথে সাথে নতুন কন্টেন্ট লোড করে, তাই বার বার এটি চালানো গুরুত্বপূর্ণ।
-setInterval(blockFacebookDistractions, 200);
+const observer = new MutationObserver(aggressiveBlocker);
+observer.observe(targetNode, config);
+
+// পেজ লোডের সঙ্গে সঙ্গেই একবার চালানো
+aggressiveBlocker();
