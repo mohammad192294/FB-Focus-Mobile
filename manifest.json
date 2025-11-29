@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Facebook Focus Mode (Mobile)",
+  "version": "1.0",
+  "description": "Blocks Reels, Watch, and Video sections on m.facebook.com to help with study focus.",
+  "icons": {
+    "16": "icons/focus16.png",
+    "48": "icons/focus48.png",
+    "128": "icons/focus128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://m.facebook.com/*"
+      ],
+      "js": [
+        "content_script.js"
+      ]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage"
+  ]
+}
