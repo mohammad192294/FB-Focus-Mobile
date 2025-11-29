@@ -11,7 +11,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://m.facebook.com/*"
+        "*://*.facebook.com/*"
       ],
       "js": [
         "content_script.js"
